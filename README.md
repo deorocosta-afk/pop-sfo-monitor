@@ -23,58 +23,35 @@ one tracker, one SQLite DB, one Telegram digest, one dashboard, one Worker, one 
 - Sends a Top-5 Telegram digest and the HTML dashboard with granular delivery
   flags (`message_delivered`, `document_delivered`).
 
-## Local AA companion (residential browser)
+## Fare source: Google Flights only
 
-aa.com is Akamai-protected and normally blocks GitHub datacenter IPs. On this
-Windows machine a normal Chrome can pass the challenge and show real AA prices.
-`local_aa_check.ps1` runs after the morning GitHub scan, checks the top 5 pairs
-on aa.com with a persistent Chrome profile, sends a Telegram message when a
-price is found, and commits only `direct_aa_report.md` (no binary DB conflicts).
+Google Flights is the **only fare scanner**. Direct airline fare checks were
+removed: the trial showed only a small, inconsistent difference (AA was $7 lower
+on 2 of 5 pairs but higher on the other 3; JetBlue has no through POP ⇄ SFO
+fare), and aa.com is Akamai-blocked on GitHub runners. The local AA scheduled
+task was unregistered.
 
-Windows Scheduled Task: **POP-SFO Local AA Direct Check**, daily at **07:45**.
+## Promo watcher (public airline sales)
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File C:\Herness\pop-sfo-monitor\local_aa_check.ps1
+`promo_watcher.py` watches **public** AA/JetBlue sale and promo announcements —
+not member-only or subscriber offers — and sends a Telegram alert when a new
+public promo or promo code appears.
+
+- **Reliable cloud source:** Google News RSS for AA/JetBlue sale/promo coverage.
+- **Official pages:** aa.com and jetblue.com deal pages are also probed, but
+  they often return HTTP 403/406 from datacenter IPs; the watcher records them
+  as `BLOCKED` and continues with the news feed.
+- **Codes:** extracted from headlines/snippets; the alert explicitly says to
+  verify the code and conditions on the airline site. Member/subscriber-only
+  items are filtered out.
+- **Dedupe:** `promo_seen` / `promo_sources` in `pop_sfo_prices.db`; the same
+  code or title is not sent twice.
+- **No fare scanning:** Google Flights remains the fare source.
+
+```bash
+python promo_watcher.py --dry-run   # fetch and print, no DB writes/Telegram
+python promo_watcher.py             # write state and alert on new promos
 ```
-
-Caveats: the PC must be on and the user logged in (Chrome window appears); AA may
-still challenge intermittently; the task only adds AA data — the GitHub cloud
-scan and digest remain the primary 24/7 pipeline.
-
-## Direct airline checks: what the comparison showed
-
-We compared the top-5 pairs from the Google scan with direct aa.com prices
-(27.10.2026):
-
-| Dates | Google | AA direct | Delta (AA − Google) |
-|---|---|---|---|
-| 20.05 → 05.06 | $855 | $848 | **−$7** |
-| 20.05 → 08.06 | $855 | $848 | **−$7** |
-| 20.05 → 11.06 | $855 | $877 | +$22 |
-| 20.05 → 12.06 | $855 | $859 | +$4 |
-| 20.05 → 13.06 | $855 | $859 | +$4 |
-
-- AA is **lower on 2 of 5** pairs (by $7), higher on 3 of 5; average AA is ~$3
-  more expensive, but the absolute minimum is AA's $848.
-- JetBlue direct returns **no POP ⇄ SFO itinerary** (it sells POP ⇄ JFK and
-  JFK ⇄ SFO separately); it never produced a comparable through price.
-- On GitHub runners AA is additionally `BLOCKED` by Akamai.
-
-Decision:
-
-- **Google Flights is the only cloud scanner.** The `Direct airline check`
-  step was removed from `monitor.yml`: it cost ~5 min/day and produced no
-  prices in the cloud (AA blocked, B6 empty).
-- **The local AA companion remains** because it actually finds a lower price
-  ($848 vs $855) on the two cheapest pairs. It runs only on this PC and sends
-  a separate Telegram message.
-- **B6 is kept in Google results**; a direct B6 check can still be run manually
-  with `direct_airlines.py --airlines B6`, but it currently has no through fare.
-- `direct_airlines.py` remains in the repo for manual/local checks and writes
-  `direct_airline_report.md` / `direct_aa_report.md`.
-
-If the $7 difference is considered noise, the local AA task can be disabled and
-the project becomes Google-only.
 
 ## Project layout
 
@@ -86,8 +63,8 @@ the project becomes Google-only.
 | `generate_pop_sfo_dashboard.py` | Interactive HTML dashboard |
 | `cloudflare_worker.js` | Hosts the dashboard + secured Telegram webhook |
 | `harness_reset.py` | `--wipe` / `--seed` / `--status` |
-| `direct_airlines.py` | Manual/local direct AA/JetBlue check (not in the cloud pipeline) |
-| `.github/workflows/monitor.yml` | Scheduled scan, persistence before delivery |
+| `promo_watcher.py` | Public AA/JetBlue sale/promo watcher (Google News RSS) |
+| `.github/workflows/monitor.yml` | Scheduled scan, promo watch, persistence before delivery |
 | `test_tracker_pop_sfo.py` | Python test suite |
 | `tests/test_worker.mjs` | Cloudflare Worker security tests |
 
@@ -106,6 +83,7 @@ python guard_daily_run.py               # idempotency decision
 
 python -m unittest discover -s . -v     # Python tests
 node tests/test_worker.mjs              # Worker tests
+python promo_watcher.py --dry-run       # public AA/JetBlue promo preview
 ```
 
 Production scan (writes real data and may send Telegram):
@@ -130,7 +108,9 @@ https://deorocosta-afk.github.io/pop-sfo-monitor/pop_sfo_dashboard.html
 `.github/workflows/monitor.yml` runs five morning crons (07:17–09:17
 America/La_Paz) and one
 `workflow_dispatch` (optional `force`). Only the first run of the day scans;
-the rest are skipped by the guard unless a digest is undelivered.
+the rest are skipped by the guard unless a digest is undelivered. After the
+scan, `promo_watcher.py` checks public AA/JetBlue sale news and sends a Telegram
+alert only when a new public promo/code appears (`continue-on-error`).
 
 Required repository secrets:
 

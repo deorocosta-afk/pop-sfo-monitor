@@ -90,6 +90,18 @@ jobs:
         run: |
           python -u tracker_pop_sfo.py --step-days 1 --threshold 700
 
+      # Public promo watcher: Google News RSS for AA/JetBlue public sales.
+      # Never touches fare scanning; sends a Telegram alert only on new promos.
+      - name: Promo watcher (AA, B6 public sales)
+        id: promo_watcher
+        if: steps.check_run.outputs.should_run_scan == 'true'
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python promo_watcher.py
+
       # Persist the scan results BEFORE Telegram: a Telegram failure must not lose data.
       - name: Commit updated database and dashboard
         if: steps.check_run.outputs.should_run_scan == 'true' && !cancelled()
@@ -98,6 +110,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pop_sfo_prices.db
           if [ -f pop_sfo_dashboard.html ]; then git add pop_sfo_dashboard.html; fi
+          if [ -f promo_watcher_report.md ]; then git add promo_watcher_report.md; fi
           if git diff --staged --quiet; then
             echo "No database changes to commit."
             exit 0

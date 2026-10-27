@@ -665,15 +665,25 @@ class TestPopSfoTracker(unittest.TestCase):
 
 
 
-    def test_direct_airline_price_parser(self):
-        """Direct airline page text is parsed into a price, flight number and stops."""
-        from direct_airlines import parse_prices
-        price, flight, stops = parse_prices(
-            "Nonstop 6h 34m 6:40am JFK 10:14am SFO JetBlue B6 1515 Main $408"
+    def test_promo_code_extraction(self):
+        """Public promo codes are extracted; arena/member-only noise is filtered out."""
+        from promo_watcher import extract_codes, is_public_sale
+        codes = extract_codes(
+            "Use code SAVE25 for the spring sale. Promo code FALLTRAVEL is public. "
+            "Not a code: SALE, CODE, MEMBER."
         )
-        self.assertEqual(price, 408.0)
-        self.assertEqual(flight, "B6 1515")
-        self.assertEqual(stops, "Nonstop")
+        self.assertIn("SAVE25", codes)
+        self.assertIn("FALLTRAVEL", codes)
+        self.assertNotIn("CODE", codes)
+        self.assertNotIn("SALE", codes)
+        self.assertNotIn("MEMBER", codes)
+
+        self.assertTrue(is_public_sale(
+            "JetBlue flight sale: fares from $49 with promo code FLY25", "B6"))
+        self.assertFalse(is_public_sale(
+            "American Airlines Center tickets on sale for the Mavericks", "AA"))
+        self.assertFalse(is_public_sale(
+            "JetBlue TrueBlue member-only fare sale", "B6"))
 
 
 if __name__ == "__main__":
