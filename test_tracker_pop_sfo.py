@@ -260,7 +260,9 @@ class TestPopSfoTracker(unittest.TestCase):
     def test_failed_date_not_repeated_within_run(self):
         """When a leg date fails, it is recorded in FAILED_DATES and not re-queried across subsequent pairs."""
         reset_session_state()
-        with patch("tracker_pop_sfo.fetch_one_stop_legs") as mock_fetch:
+        with patch("tracker_pop_sfo.fetch_one_stop_legs") as mock_fetch, \
+             patch("tracker_pop_sfo.get_from_disk_cache", return_value=None), \
+             patch("tracker_pop_sfo.put_to_disk_cache"):
             mock_fetch.return_value = ("ERROR", [])
 
             # First attempt for 2027-05-20
