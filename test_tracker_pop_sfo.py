@@ -663,5 +663,16 @@ class TestPopSfoTracker(unittest.TestCase):
 
 
 
+    def test_direct_airline_price_parser(self):
+        """Direct airline page text is parsed into a price, flight number and stops."""
+        from direct_airlines import parse_prices
+        price, flight, stops = parse_prices(
+            "Nonstop 6h 34m 6:40am JFK 10:14am SFO JetBlue B6 1515 Main $408"
+        )
+        self.assertEqual(price, 408.0)
+        self.assertEqual(flight, "B6 1515")
+        self.assertEqual(stops, "Nonstop")
+
+
 if __name__ == "__main__":
     unittest.main()

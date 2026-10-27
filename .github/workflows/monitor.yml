@@ -87,6 +87,20 @@ jobs:
         run: |
           python -u tracker_pop_sfo.py --step-days 1 --threshold 700
 
+      # Best-effort direct verification on the airlines' own booking sites.
+      # AA is Akamai-protected and may return BLOCKED on datacenter IPs; B6 may
+      # legitimately report no POP-SFO itinerary. The step never blocks the scan.
+      - name: Direct airline check (AA, B6)
+        id: direct_check
+        if: steps.check_run.outputs.should_run_scan == 'true'
+        continue-on-error: true
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+          xvfb-run -a python direct_airlines.py --top 5
+
       # Persist the scan results BEFORE Telegram: a Telegram failure must not lose data.
       - name: Commit updated database and dashboard
         if: steps.check_run.outputs.should_run_scan == 'true' && !cancelled()
@@ -95,6 +109,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pop_sfo_prices.db
           if [ -f pop_sfo_dashboard.html ]; then git add pop_sfo_dashboard.html; fi
+          if [ -f direct_airline_report.md ]; then git add direct_airline_report.md; fi
           if git diff --staged --quiet; then
             echo "No database changes to commit."
             exit 0

@@ -23,6 +23,43 @@ one tracker, one SQLite DB, one Telegram digest, one dashboard, one Worker, one 
 - Sends a Top-5 Telegram digest and the HTML dashboard with granular delivery
   flags (`message_delivered`, `document_delivered`).
 
+## Direct airline check
+
+Google Flights remains the only source that can scan all 425 date pairs without
+tripping airline bot protection. After each scan, `direct_airlines.py` checks
+the **top N cheapest pairs** on the airlines' own booking sites, using a normal
+Chrome driven through the DevTools Protocol:
+
+```bash
+python direct_airlines.py --top 5
+# Linux/GitHub Actions:
+xvfb-run -a python direct_airlines.py --top 5
+```
+
+Results are written to `direct_airline_checks` in SQLite and to
+`direct_airline_report.md`; the Telegram digest also gets a one-line summary.
+
+Statuses:
+
+- `OK` — an airline price was found;
+- `EMPTY` — the airline reports no itinerary for the route/date;
+- `BLOCKED` — Akamai/bot challenge (aa.com on datacenter IPs);
+- `ERROR` — browser/CDP failure.
+
+Important limitations:
+
+- **aa.com is Akamai-protected.** A residential browser can pass and see
+  `Choose flights` (e.g. $848 for 20.05 → 05.06), but datacenter/GitHub runners
+  are frequently challenged. The workflow therefore treats this step as
+  best-effort and never fails the scan because of it.
+- **JetBlue does not sell POP ⇄ SFO as one itinerary** in the current schedule:
+  it sells POP ⇄ JFK and JFK ⇄ SFO separately, while a POP ⇄ SFO search returns
+  "No flights have been found". The direct check records that honestly as
+  `EMPTY`; Google Flights may still show a multi-leg/self-transfer combination.
+- For guaranteed direct airline inventory 24/7, use an official distribution
+  API (Duffel/Amadeus) or a browser farm with residential proxies; both require
+  accounts/credentials that the current deployment does not have.
+
 ## Project layout
 
 | File | Purpose |
@@ -33,6 +70,7 @@ one tracker, one SQLite DB, one Telegram digest, one dashboard, one Worker, one 
 | `generate_pop_sfo_dashboard.py` | Interactive HTML dashboard |
 | `cloudflare_worker.js` | Hosts the dashboard + secured Telegram webhook |
 | `harness_reset.py` | `--wipe` / `--seed` / `--status` |
+| `direct_airlines.py` | Best-effort direct AA/JetBlue check for the top date pairs |
 | `.github/workflows/monitor.yml` | Scheduled scan, persistence before delivery |
 | `test_tracker_pop_sfo.py` | Python test suite |
 | `tests/test_worker.mjs` | Cloudflare Worker security tests |
