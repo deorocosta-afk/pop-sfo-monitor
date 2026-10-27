@@ -57,14 +57,14 @@ NEWS_SOURCES = [
         "airline": "B6",
         "name": "Google News: JetBlue sale/promo",
         "url": "https://news.google.com/rss/search",
-        "query": 'JetBlue ("promo code" OR "flight sale" OR "fare sale") '
+        "query": 'JetBlue (sale OR "promo code" OR "fare sale") '
                  '-Amex -Grubhub -DraftKings when:30d',
     },
     {
         "airline": "AA",
         "name": "Google News: American Airlines sale/promo",
         "url": "https://news.google.com/rss/search",
-        "query": '"American Airlines" ("promo code" OR "flight sale" OR "fare sale") '
+        "query": '"American Airlines" (sale OR "promo code" OR "fare sale") '
                  '-Alaska -Southwest -United -Delta -JetSMART when:30d',
     },
 ]
@@ -131,19 +131,21 @@ def is_public_sale(text: str, airline: str) -> bool:
     positive = re.search(
         r"(promo\s*code|discount\s*code|coupon\s*code|flight\s*sale|fare\s*sale|"
         r"airfare\s*sale|flight\s*deal|fare\s*deal|airfare\s*deal|save\s+\$?\d+|"
-        r"\d+%\s*off)",
+        r"\d+%\s*off|\bsale\b)",
         low,
     )
     if not positive:
         return False
     negative = re.search(
         r"(american airlines center|tickets?\s+on\s+sale|concert|nba|nhl|nfl|"
-        r"mavericks|celtics|knicks|lakers|spurs|first class|bluefirst|launch|"
-        r"new flights|data sale|airline changes|points and miles|credit card|"
+        r"mavericks|celtics|knicks|lakers|spurs|first[- ]class|bluefirst|seats|"
+        r"launch|new flights|data sale|airline changes|points and miles|credit card|"
         r"amex|grubhub|draftkings|savings account)",
         low,
     )
     if negative:
+        return False
+    if re.search(r"\bsale\b", low) and not re.search(r"(flight|fare|airfare|ticket)", low):
         return False
     if airline == "AA" and "american airlines" not in low:
         return False
