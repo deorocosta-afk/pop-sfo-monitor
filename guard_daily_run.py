@@ -4,8 +4,8 @@ guard_daily_run.py
 Idempotency guard for the standalone POP <-> SFO flight monitor.
 
 Checks:
-1. Whether the latest POP-SFO scan is complete, fresh (< 18 hours) and has
-   at least 80 quotes.
+1. Whether the latest POP-SFO scan is complete, from the current UTC day,
+   fresh (< 18 hours) and has at least 80 quotes.
 2. Whether the completed scan has an undelivered Telegram digest
    (telegram_delivery_state).
 
@@ -184,8 +184,12 @@ def check_and_decide() -> None:
             scans_fresh = False
         else:
             hours_ago = (now_utc - dt).total_seconds() / 3600.0
-            if hours_ago >= FRESH_HOURS:
-                print(f"[CHECK] Scan is stale ({hours_ago:.1f}h ago >= {FRESH_HOURS:.0f}h).")
+            scan_is_old_day = dt.date() < now_utc.date()
+            if hours_ago >= FRESH_HOURS or scan_is_old_day:
+                print(
+                    f"[CHECK] Scan is stale ({hours_ago:.1f}h ago, "
+                    f"scan_date={dt.date()}, today={now_utc.date()})."
+                )
                 scans_fresh = False
             elif total_quotes < MIN_REQUIRED_QUOTES:
                 print(
@@ -207,8 +211,12 @@ def check_and_decide() -> None:
             scans_fresh = False
         else:
             hours_ago = (now_utc - dt).total_seconds() / 3600.0
-            if hours_ago >= FRESH_HOURS:
-                print(f"[CHECK] Scan is stale ({hours_ago:.1f}h ago >= {FRESH_HOURS:.0f}h).")
+            scan_is_old_day = dt.date() < now_utc.date()
+            if hours_ago >= FRESH_HOURS or scan_is_old_day:
+                print(
+                    f"[CHECK] Scan is stale ({hours_ago:.1f}h ago, "
+                    f"scan_date={dt.date()}, today={now_utc.date()})."
+                )
                 scans_fresh = False
             elif count < MIN_REQUIRED_QUOTES:
                 print(f"[CHECK] Scan is incomplete ({count} quotes < {MIN_REQUIRED_QUOTES} required).")

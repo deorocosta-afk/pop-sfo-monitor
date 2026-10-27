@@ -2,13 +2,13 @@ name: POP-SFO Flight Price Monitor
 
 on:
   schedule:
-    # Off-peak window (09:00 - 11:30 UTC = 05:00 - 07:30 AST).
-    # The guard ensures only the first run of the day performs the scan.
-    - cron: '17 9 * * *'
-    - cron: '47 9 * * *'
-    - cron: '17 10 * * *'
-    - cron: '47 10 * * *'
+    # Morning window for America/La_Paz (UTC-4): 07:17 - 09:17 local.
+    # The guard scans once per calendar day; later crons are backups.
     - cron: '17 11 * * *'
+    - cron: '47 11 * * *'
+    - cron: '17 12 * * *'
+    - cron: '47 12 * * *'
+    - cron: '17 13 * * *'
   workflow_dispatch:
     inputs:
       force:

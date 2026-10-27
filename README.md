@@ -28,7 +28,7 @@ one tracker, one SQLite DB, one Telegram digest, one dashboard, one Worker, one 
 | File | Purpose |
 |---|---|
 | `tracker_pop_sfo.py` | Scan, parse, validate, persist; CLI entry point |
-| `guard_daily_run.py` | 18 h idempotency, `scan_runs`, delivery trigger |
+| `guard_daily_run.py` | 18 h / new-day idempotency, `scan_runs`, delivery trigger |
 | `send_telegram_summary.py` | Top-5 digest + dashboard upload |
 | `generate_pop_sfo_dashboard.py` | Interactive HTML dashboard |
 | `cloudflare_worker.js` | Hosts the dashboard + secured Telegram webhook |
@@ -67,7 +67,8 @@ python send_telegram_summary.py
 
 ## CI
 
-`.github/workflows/monitor.yml` runs five off-peak crons per day and one
+`.github/workflows/monitor.yml` runs five morning crons (07:17–09:17
+America/La_Paz) and one
 `workflow_dispatch` (optional `force`). Only the first run of the day scans;
 the rest are skipped by the guard unless a digest is undelivered.
 
