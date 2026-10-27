@@ -305,7 +305,7 @@
         <p>Строго аэропорты <strong>POP (Пуэрто-Плата) ⇄ SFO (Сан-Франциско)</strong> • Вылет ≥ 20 мая, Возврат ≤ 5 июля • 14–30 ночей • AA / JetBlue / United / Copa</p>
       </div>
       <div class="refresh-badge">
-        🕒 Обновлено: 27.10.2026 20:48:50
+        🕒 Обновлено: 27.10.2026 17:00:05
       </div>
     </header>
 
@@ -550,8 +550,12 @@
           ? `<span class="badge-split" title="Рейсы выполняются разными авиакомпаниями (2 отдельных билета)">⚠️ 2 отдельных билета</span>`
           : `<span class="badge-single" title="Рейсы выполняются одной авиакомпанией (сумма двух плеч)">✅ 1 авиакомпания (сумма плеч)</span>`;
 
-        // Direct search URLs
-        const aaUrl = `https://www.aa.com/homePage.do?searchType=flight&originAirport=POP&destinationAirport=SFO&departDate=${m1}/${d1}/${y1}&returnDate=${m2}/${d2}/${y2}`;
+        // AA's current /booking/search deep link (homePage.do is ignored by aa.com)
+        const aaSlices = JSON.stringify([
+          { orig: "POP", origNearby: false, dest: "SFO", destNearby: false, date: r.date },
+          { orig: "SFO", origNearby: false, dest: "POP", destNearby: false, date: r.return_date }
+        ]);
+        const aaUrl = `https://www.aa.com/booking/search?locale=en_US&fareType=Lowest&pax=1&adult=1&type=RoundTrip&searchType=Revenue&cabin=&carriers=ALL&travelType=personal&slices=${encodeURIComponent(aaSlices)}`;
         const jbUrl = `https://www.jetblue.com/booking/flights?from=POP&to=SFO&depart=${r.date}&return=${r.return_date}&isMultiCity=false&noOfRoute=1&lang=en`;
         const uaUrl = `https://www.united.com/en/us/fsr/choose-flights?f=POP&t=SFO&d=${r.date}&r=${r.return_date}&px=1&taxng=1&idx=1`;
         const cmUrl = `https://www.copaair.com/en-gs/?origin=POP&destination=SFO&departureDate=${r.date}&returnDate=${r.return_date}&tripType=roundTrip`;

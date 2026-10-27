@@ -359,6 +359,48 @@ def format_duration_minutes(total_min: Optional[int]) -> str:
 
 # --- Honest Search & Booking URLs for all 4 Airlines ---
 
+def build_aa_search_url(
+    origin: str,
+    dest: str,
+    dep_date: str,
+    ret_date: Optional[str] = None,
+) -> str:
+    """
+    AA's current booking deep link (the one its own React form constructs):
+    /booking/search?...&slices=[{"orig":...,"dest":...,"date":...}].
+    The legacy /homePage.do?searchType=flight... link is ignored by aa.com and
+    redirects to the localized home page, so it must not be used.
+    """
+    slices = [{
+        "orig": origin,
+        "origNearby": False,
+        "dest": dest,
+        "destNearby": False,
+        "date": dep_date,
+    }]
+    if ret_date:
+        slices.append({
+            "orig": dest,
+            "origNearby": False,
+            "dest": origin,
+            "destNearby": False,
+            "date": ret_date,
+        })
+    params = {
+        "locale": "en_US",
+        "fareType": "Lowest",
+        "pax": "1",
+        "adult": "1",
+        "type": "RoundTrip" if ret_date else "OneWay",
+        "searchType": "Revenue",
+        "cabin": "",
+        "carriers": "ALL",
+        "travelType": "personal",
+        "slices": json.dumps(slices, separators=(",", ":")),
+    }
+    return "https://www.aa.com/booking/search?" + urllib.parse.urlencode(params)
+
+
 def build_airline_search_urls(
     carrier_out: str,
     carrier_in: str,
@@ -374,11 +416,6 @@ def build_airline_search_urls(
     q = urllib.parse.quote(f"Flights from {origin} to {dest} on {dep_date} through {ret_date} with 1 stop")
     gf_url = f"https://www.google.com/travel/flights?q={q}&curr=USD&hl=en"
 
-    def _dep_us(d_str: str) -> str:
-        # Converts YYYY-MM-DD to MM/DD/YYYY for AA
-        parts = d_str.split("-")
-        return f"{parts[1]}/{parts[2]}/{parts[0]}"
-
     urls = {
         "google_flights": gf_url,
         "is_mixed": (carrier_out != carrier_in),
@@ -388,9 +425,7 @@ def build_airline_search_urls(
 
     # Outbound airline search URL
     if carrier_out == "AA":
-        urls["outbound_url"] = (
-            f"https://www.aa.com/homePage.do?searchType=flight&originAirport={origin}&destinationAirport={dest}&departDate={_dep_us(dep_date)}&tripType=oneWay"
-        )
+        urls["outbound_url"] = build_aa_search_url(origin, dest, dep_date)
     elif carrier_out == "B6":
         urls["outbound_url"] = (
             f"https://www.jetblue.com/booking/flights?from={origin}&to={dest}&depart={dep_date}&isMultiCity=false&noOfRoute=1&lang=en"
@@ -408,9 +443,7 @@ def build_airline_search_urls(
 
     # Inbound airline search URL
     if carrier_in == "AA":
-        urls["inbound_url"] = (
-            f"https://www.aa.com/homePage.do?searchType=flight&originAirport={dest}&destinationAirport={origin}&departDate={_dep_us(ret_date)}&tripType=oneWay"
-        )
+        urls["inbound_url"] = build_aa_search_url(dest, origin, ret_date)
     elif carrier_in == "B6":
         urls["inbound_url"] = (
             f"https://www.jetblue.com/booking/flights?from={dest}&to={origin}&depart={ret_date}&isMultiCity=false&noOfRoute=1&lang=en"
@@ -430,9 +463,7 @@ def build_airline_search_urls(
     if carrier_out == carrier_in:
         c = carrier_out
         if c == "AA":
-            urls["roundtrip_airline_url"] = (
-                f"https://www.aa.com/homePage.do?searchType=flight&originAirport={origin}&destinationAirport={dest}&departDate={_dep_us(dep_date)}&returnDate={_dep_us(ret_date)}"
-            )
+            urls["roundtrip_airline_url"] = build_aa_search_url(origin, dest, dep_date, ret_date)
         elif c == "B6":
             urls["roundtrip_airline_url"] = (
                 f"https://www.jetblue.com/booking/flights?from={origin}&to={dest}&depart={dep_date}&return={ret_date}&isMultiCity=false&noOfRoute=1&lang=en"
