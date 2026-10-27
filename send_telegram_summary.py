@@ -63,6 +63,7 @@ def init_delivery_table(db_path: Path = SHARED_DB_PATH) -> None:
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(db_path)
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS telegram_delivery_state (
                 route_id TEXT NOT NULL,
@@ -95,6 +96,7 @@ def get_delivery_status(route_id: str, scan_ts: str, db_path: Path = SHARED_DB_P
     conn = None
     try:
         conn = sqlite3.connect(db_path)
+        conn.execute("PRAGMA busy_timeout=5000")
         cur = conn.cursor()
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='telegram_delivery_state'")
         if not cur.fetchone():
@@ -139,6 +141,7 @@ def record_delivery_progress(
     try:
         init_delivery_table(db_path)
         conn = sqlite3.connect(db_path)
+        conn.execute("PRAGMA busy_timeout=5000")
         cur = conn.cursor()
         cur.execute(
             "SELECT message_delivered, document_delivered FROM telegram_delivery_state "
@@ -260,6 +263,7 @@ def format_sfo_deals(
     conn = None
     try:
         conn = sqlite3.connect(db_path)
+        conn.execute("PRAGMA busy_timeout=5000")
         cur = conn.cursor()
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='flight_quotes'")
         if not cur.fetchone():

@@ -51,6 +51,7 @@ def read_latest_scan_run(db_file: str = DB_PATH.name) -> Optional[Dict[str, Any]
     conn = None
     try:
         conn = sqlite3.connect(path)
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='scan_runs'")
@@ -76,6 +77,7 @@ def read_latest_scan_info(db_file: str = DB_PATH.name) -> Tuple[Optional[datetim
     conn = None
     try:
         conn = sqlite3.connect(path)
+        conn.execute("PRAGMA busy_timeout=5000")
         c = conn.cursor()
         c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='flight_quotes'")
         if c.fetchone():
@@ -112,6 +114,7 @@ def is_route_delivered(route_id: str, scan_ts: str) -> bool:
     conn = None
     try:
         conn = sqlite3.connect(SHARED_DB_PATH)
+        conn.execute("PRAGMA busy_timeout=5000")
         c = conn.cursor()
         c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='telegram_delivery_state'")
         if not c.fetchone():

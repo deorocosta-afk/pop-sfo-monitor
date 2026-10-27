@@ -921,6 +921,7 @@ def init_database(db_path: Path = DB_PATH):
     conn = None
     try:
         conn = sqlite3.connect(db_path)
+        conn.execute("PRAGMA busy_timeout=5000")
         cur = conn.cursor()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS flight_quotes (
@@ -1026,6 +1027,7 @@ def save_scan_data_and_status(
     conn = None
     try:
         conn = sqlite3.connect(db_path)
+        conn.execute("PRAGMA busy_timeout=5000")
         cur = conn.cursor()
         cur.execute("BEGIN IMMEDIATE")
 
@@ -1202,6 +1204,7 @@ def maintain_database(db_path: Path = DB_PATH, retention_days: int = RETENTION_D
     conn = None
     try:
         conn = sqlite3.connect(db_path)
+        conn.execute("PRAGMA busy_timeout=5000")
         cur = conn.cursor()
         cur.execute("DELETE FROM flight_quotes WHERE timestamp < ?", (cutoff,))
         cur.execute("DELETE FROM daily_prices WHERE timestamp < ?", (cutoff,))

@@ -295,6 +295,7 @@ def check_jetblue(chrome: str, dep: str, ret: str) -> dict:
 
 def top_pairs(db_path: Path, limit: int) -> list[tuple[str, str, int]]:
     conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA busy_timeout=5000")
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -314,6 +315,7 @@ def top_pairs(db_path: Path, limit: int) -> list[tuple[str, str, int]]:
 
 def save_checks(db_path: Path, timestamp: str, checks: list[dict]) -> None:
     conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA busy_timeout=5000")
     try:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS direct_airline_checks (

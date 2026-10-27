@@ -114,6 +114,7 @@ def seed_environment() -> None:
     conn = None
     try:
         conn = sqlite3.connect(DB_SFO)
+        conn.execute("PRAGMA busy_timeout=5000")
         cur = conn.cursor()
         cur.executemany("""
             INSERT INTO flight_quotes (
@@ -161,6 +162,7 @@ def print_status() -> None:
         conn = None
         try:
             conn = sqlite3.connect(DB_SFO)
+            conn.execute("PRAGMA busy_timeout=5000")
             c = conn.cursor()
             c.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' "

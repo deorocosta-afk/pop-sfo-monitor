@@ -27,7 +27,10 @@ concurrency:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Full scan ~850 requests x 1.2-2.0s jitter (~23 min) + xvfb/Chrome direct check
+    # (~3 min) + git/Telegram (~2 min) = ~28 min nominal. 75 min keeps a safety
+    # margin for Google throttling and retries without hitting the 6h hard cap.
+    timeout-minutes: 75
     env:
       PYTHONUNBUFFERED: "1"
 

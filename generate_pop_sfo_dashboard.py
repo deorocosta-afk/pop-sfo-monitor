@@ -680,6 +680,7 @@ def export_dashboard(open_in_browser: bool = False) -> Path:
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
