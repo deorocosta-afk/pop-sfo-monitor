@@ -372,6 +372,14 @@ def write_report(timestamp: str, checks: list[dict]) -> None:
         "challenged, while a residential browser can pass. JetBlue is queried via "
         "its normal booking form.",
     ]
+    if any(c.get("airline") == "B6" and c.get("status") == STATUS_EMPTY for c in checks):
+        lines += [
+            "",
+            "JetBlue currently reports no POP ⇄ SFO itinerary. The B6 check is kept "
+            "in the daily pipeline on purpose: when JetBlue opens the May 2027 "
+            "schedule (or adds a through fare), the next run will record it as OK "
+            "automatically. No manual reconfiguration is needed.",
+        ]
     REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 

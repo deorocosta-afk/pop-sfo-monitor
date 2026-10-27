@@ -346,7 +346,10 @@ def format_sfo_deals(
             if status == "OK" and price is not None:
                 parts.append(f"{airline} ${price:.0f}")
             elif status == "EMPTY":
-                parts.append(f"{airline} — нет рейсов")
+                if airline == "B6":
+                    parts.append("B6 — рейсы пока не найдены (ждём открытия расписания)")
+                else:
+                    parts.append(f"{airline} — нет рейсов")
             elif status == "BLOCKED":
                 parts.append(f"{airline} — сайт закрыт")
             else:

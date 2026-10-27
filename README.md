@@ -70,10 +70,13 @@ Important limitations:
   `Choose flights` (e.g. $848 for 20.05 → 05.06), but datacenter/GitHub runners
   are frequently challenged. The workflow therefore treats this step as
   best-effort and never fails the scan because of it.
-- **JetBlue does not sell POP ⇄ SFO as one itinerary** in the current schedule:
+- **JetBlue currently does not sell POP ⇄ SFO as one itinerary**:
   it sells POP ⇄ JFK and JFK ⇄ SFO separately, while a POP ⇄ SFO search returns
   "No flights have been found". The direct check records that honestly as
-  `EMPTY`; Google Flights may still show a multi-leg/self-transfer combination.
+  `EMPTY`, **but the B6 check is deliberately kept in the daily pipeline**:
+  when JetBlue opens the May 2027 schedule (or adds a through fare), the next
+  run will record it as `OK` automatically — no reconfiguration needed. Google
+  Flights may still show a multi-leg/self-transfer combination.
 - For guaranteed direct airline inventory 24/7, use an official distribution
   API (Duffel/Amadeus) or a browser farm with residential proxies; both require
   accounts/credentials that the current deployment does not have.

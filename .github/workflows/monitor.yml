@@ -91,8 +91,9 @@ jobs:
           python -u tracker_pop_sfo.py --step-days 1 --threshold 700
 
       # Best-effort direct verification on the airlines' own booking sites.
-      # AA is Akamai-protected and may return BLOCKED on datacenter IPs; B6 may
-      # legitimately report no POP-SFO itinerary. The step never blocks the scan.
+      # AA is Akamai-protected and may return BLOCKED on datacenter IPs.
+      # B6 is intentionally kept even when it returns EMPTY: JetBlue may open
+      # the May 2027 schedule later, and the daily run will pick it up.
       - name: Direct airline check (AA, B6)
         id: direct_check
         if: steps.check_run.outputs.should_run_scan == 'true'
