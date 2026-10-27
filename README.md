@@ -23,6 +23,24 @@ one tracker, one SQLite DB, one Telegram digest, one dashboard, one Worker, one 
 - Sends a Top-5 Telegram digest and the HTML dashboard with granular delivery
   flags (`message_delivered`, `document_delivered`).
 
+## Local AA companion (residential browser)
+
+aa.com is Akamai-protected and normally blocks GitHub datacenter IPs. On this
+Windows machine a normal Chrome can pass the challenge and show real AA prices.
+`local_aa_check.ps1` runs after the morning GitHub scan, checks the top 5 pairs
+on aa.com with a persistent Chrome profile, sends a Telegram message when a
+price is found, and commits only `direct_aa_report.md` (no binary DB conflicts).
+
+Windows Scheduled Task: **POP-SFO Local AA Direct Check**, daily at **07:45**.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\Herness\pop-sfo-monitor\local_aa_check.ps1
+```
+
+Caveats: the PC must be on and the user logged in (Chrome window appears); AA may
+still challenge intermittently; the task only adds AA data — the GitHub cloud
+scan and digest remain the primary 24/7 pipeline.
+
 ## Direct airline check
 
 Google Flights remains the only source that can scan all 425 date pairs without

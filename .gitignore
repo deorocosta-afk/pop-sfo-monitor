@@ -5,3 +5,5 @@ venv/
 .cache_pop_sfo_legs.json
 _gh_output.txt
 .DS_Store
+.chrome_aa_profile/
+local_aa_check.log
