@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.cache_pop_sfo_legs.json
+_gh_output.txt
+.DS_Store

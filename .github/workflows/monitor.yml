@@ -1,0 +1,170 @@
+name: POP-SFO Flight Price Monitor
+
+on:
+  schedule:
+    # Off-peak window (09:00 - 11:30 UTC = 05:00 - 07:30 AST).
+    # The guard ensures only the first run of the day performs the scan.
+    - cron: '17 9 * * *'
+    - cron: '47 9 * * *'
+    - cron: '17 10 * * *'
+    - cron: '47 10 * * *'
+    - cron: '17 11 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force scan ignoring the 18h idempotency window"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# One monitor run at a time; the next trigger waits instead of racing on the DB.
+concurrency:
+  group: pop-sfo-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Check daily run idempotency
+        id: check_run
+        env:
+          INPUT_FORCE: ${{ github.event.inputs.force }}
+        run: |
+          python -u guard_daily_run.py
+
+      - name: Install dependencies
+        if: steps.check_run.outputs.should_run == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Restore flight leg cache
+        if: steps.check_run.outputs.should_run_scan == 'true'
+        uses: actions/cache@v4
+        with:
+          path: .cache_pop_sfo_legs.json
+          key: pop-sfo-legs-${{ github.run_id }}
+          restore-keys: |
+            pop-sfo-legs-
+
+      - name: Set up Node.js
+        if: steps.check_run.outputs.should_run_scan == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run tests (Python + Worker)
+        if: steps.check_run.outputs.should_run_scan == 'true'
+        run: |
+          python -m unittest discover -s . -v
+          node tests/test_worker.mjs
+
+      - name: Run POP-SFO Flight Price Monitor
+        id: tracker_sfo
+        if: steps.check_run.outputs.should_run_scan == 'true'
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python -u tracker_pop_sfo.py --step-days 1 --threshold 700
+
+      # Persist the scan results BEFORE Telegram: a Telegram failure must not lose data.
+      - name: Commit updated database and dashboard
+        if: steps.check_run.outputs.should_run_scan == 'true' && !cancelled()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add pop_sfo_prices.db
+          if [ -f pop_sfo_dashboard.html ]; then git add pop_sfo_dashboard.html; fi
+          if git diff --staged --quiet; then
+            echo "No database changes to commit."
+            exit 0
+          fi
+          git commit -m "Auto-update POP-SFO prices [skip ci]"
+          for i in 1 2 3; do
+            if git pull --rebase -X theirs origin main && git push origin HEAD:main; then
+              echo "Push succeeded on attempt $i"
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep $((i * 5))
+          done
+          exit 1
+
+      - name: Send digest and dashboard to Telegram
+        id: send_telegram
+        if: steps.check_run.outputs.should_send_telegram == 'true' && !cancelled()
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WORKER_URL: ${{ vars.WORKER_URL }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+        run: |
+          python -u send_telegram_summary.py
+
+      # Persist delivery flags AFTER Telegram so the next run does not resend the digest.
+      - name: Commit Telegram delivery state
+        if: steps.check_run.outputs.should_send_telegram == 'true' && !cancelled()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add pop_sfo_prices.db
+          if git diff --staged --quiet; then
+            echo "No delivery state changes to commit."
+            exit 0
+          fi
+          git commit -m "Record POP-SFO Telegram delivery state [skip ci]"
+          for i in 1 2 3; do
+            if git pull --rebase -X theirs origin main && git push origin HEAD:main; then
+              echo "Push delivery state succeeded on attempt $i"
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep $((i * 5))
+          done
+          exit 1
+
+      # Fail the job with exit 2 if the tracker or the Telegram step failed.
+      # Persistence steps above have already run, so data is not lost.
+      - name: Verify All Step Outcomes
+        if: always()
+        run: |
+          echo "Evaluating execution outcomes..."
+          FAILED=0
+          if [ "${{ steps.check_run.outputs.should_run_scan }}" = "true" ]; then
+            if [ "${{ steps.tracker_sfo.outcome }}" = "failure" ]; then
+              echo "::error::Tracker step 'tracker_sfo' failed!"
+              FAILED=1
+            fi
+          fi
+          if [ "${{ steps.check_run.outputs.should_send_telegram }}" = "true" ]; then
+            if [ "${{ steps.send_telegram.outcome }}" = "failure" ]; then
+              echo "::error::Telegram delivery step failed!"
+              FAILED=1
+            fi
+          fi
+          if [ "$FAILED" -ne 0 ]; then
+            echo "Persistence completed, but the pipeline failed due to tracker/Telegram errors."
+            exit 2
+          fi
+          echo "All pipeline steps completed successfully."
