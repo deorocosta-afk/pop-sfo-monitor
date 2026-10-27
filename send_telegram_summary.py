@@ -286,17 +286,6 @@ def format_sfo_deals(
             ORDER BY price_usd ASC, stay_days ASC, dep_date ASC
         """, ("POP", "SFO", latest_ts))
         raw_rows = cur.fetchall()
-
-        direct_rows = []
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='direct_airline_checks'")
-        if cur.fetchone():
-            cur.execute("""
-                SELECT airline, status, price_usd
-                FROM direct_airline_checks
-                WHERE timestamp = (SELECT MAX(timestamp) FROM direct_airline_checks)
-                ORDER BY airline, dep_date
-            """)
-            direct_rows = cur.fetchall()
     finally:
         if conn:
             conn.close()
@@ -335,26 +324,6 @@ def format_sfo_deals(
         if url:
             msg += f'   • <a href="{escape_html_attr(str(url))}">🔗 Поиск рейсов на Google Flights</a>\n'
         msg += "\n"
-
-    if direct_rows:
-        parts = []
-        seen_airlines = set()
-        for airline, status, price in direct_rows:
-            if airline in seen_airlines:
-                continue
-            seen_airlines.add(airline)
-            if status == "OK" and price is not None:
-                parts.append(f"{airline} ${price:.0f}")
-            elif status == "EMPTY":
-                if airline == "B6":
-                    parts.append("B6 — рейсы пока не найдены (ждём открытия расписания)")
-                else:
-                    parts.append(f"{airline} — нет рейсов")
-            elif status == "BLOCKED":
-                parts.append(f"{airline} — сайт закрыт")
-            else:
-                parts.append(f"{airline} — ошибка")
-        msg += "🔎 <b>Прямая проверка:</b> " + " · ".join(parts) + "\n\n"
 
     dashboard_link = DASHBOARD_URL or f"{BASE_URL}/sfo"
     msg += f'📊 <a href="{escape_html_attr(dashboard_link)}">Открыть интерактивный дашборд</a>\n'

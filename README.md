@@ -41,45 +41,40 @@ Caveats: the PC must be on and the user logged in (Chrome window appears); AA ma
 still challenge intermittently; the task only adds AA data — the GitHub cloud
 scan and digest remain the primary 24/7 pipeline.
 
-## Direct airline check
+## Direct airline checks: what the comparison showed
 
-Google Flights remains the only source that can scan all 425 date pairs without
-tripping airline bot protection. After each scan, `direct_airlines.py` checks
-the **top N cheapest pairs** on the airlines' own booking sites, using a normal
-Chrome driven through the DevTools Protocol:
+We compared the top-5 pairs from the Google scan with direct aa.com prices
+(27.10.2026):
 
-```bash
-python direct_airlines.py --top 5
-# Linux/GitHub Actions:
-xvfb-run -a python direct_airlines.py --top 5
-```
+| Dates | Google | AA direct | Delta (AA − Google) |
+|---|---|---|---|
+| 20.05 → 05.06 | $855 | $848 | **−$7** |
+| 20.05 → 08.06 | $855 | $848 | **−$7** |
+| 20.05 → 11.06 | $855 | $877 | +$22 |
+| 20.05 → 12.06 | $855 | $859 | +$4 |
+| 20.05 → 13.06 | $855 | $859 | +$4 |
 
-Results are written to `direct_airline_checks` in SQLite and to
-`direct_airline_report.md`; the Telegram digest also gets a one-line summary.
+- AA is **lower on 2 of 5** pairs (by $7), higher on 3 of 5; average AA is ~$3
+  more expensive, but the absolute minimum is AA's $848.
+- JetBlue direct returns **no POP ⇄ SFO itinerary** (it sells POP ⇄ JFK and
+  JFK ⇄ SFO separately); it never produced a comparable through price.
+- On GitHub runners AA is additionally `BLOCKED` by Akamai.
 
-Statuses:
+Decision:
 
-- `OK` — an airline price was found;
-- `EMPTY` — the airline reports no itinerary for the route/date;
-- `BLOCKED` — Akamai/bot challenge (aa.com on datacenter IPs);
-- `ERROR` — browser/CDP failure.
+- **Google Flights is the only cloud scanner.** The `Direct airline check`
+  step was removed from `monitor.yml`: it cost ~5 min/day and produced no
+  prices in the cloud (AA blocked, B6 empty).
+- **The local AA companion remains** because it actually finds a lower price
+  ($848 vs $855) on the two cheapest pairs. It runs only on this PC and sends
+  a separate Telegram message.
+- **B6 is kept in Google results**; a direct B6 check can still be run manually
+  with `direct_airlines.py --airlines B6`, but it currently has no through fare.
+- `direct_airlines.py` remains in the repo for manual/local checks and writes
+  `direct_airline_report.md` / `direct_aa_report.md`.
 
-Important limitations:
-
-- **aa.com is Akamai-protected.** A residential browser can pass and see
-  `Choose flights` (e.g. $848 for 20.05 → 05.06), but datacenter/GitHub runners
-  are frequently challenged. The workflow therefore treats this step as
-  best-effort and never fails the scan because of it.
-- **JetBlue currently does not sell POP ⇄ SFO as one itinerary**:
-  it sells POP ⇄ JFK and JFK ⇄ SFO separately, while a POP ⇄ SFO search returns
-  "No flights have been found". The direct check records that honestly as
-  `EMPTY`, **but the B6 check is deliberately kept in the daily pipeline**:
-  when JetBlue opens the May 2027 schedule (or adds a through fare), the next
-  run will record it as `OK` automatically — no reconfiguration needed. Google
-  Flights may still show a multi-leg/self-transfer combination.
-- For guaranteed direct airline inventory 24/7, use an official distribution
-  API (Duffel/Amadeus) or a browser farm with residential proxies; both require
-  accounts/credentials that the current deployment does not have.
+If the $7 difference is considered noise, the local AA task can be disabled and
+the project becomes Google-only.
 
 ## Project layout
 
@@ -91,7 +86,7 @@ Important limitations:
 | `generate_pop_sfo_dashboard.py` | Interactive HTML dashboard |
 | `cloudflare_worker.js` | Hosts the dashboard + secured Telegram webhook |
 | `harness_reset.py` | `--wipe` / `--seed` / `--status` |
-| `direct_airlines.py` | Best-effort direct AA/JetBlue check for the top date pairs |
+| `direct_airlines.py` | Manual/local direct AA/JetBlue check (not in the cloud pipeline) |
 | `.github/workflows/monitor.yml` | Scheduled scan, persistence before delivery |
 | `test_tracker_pop_sfo.py` | Python test suite |
 | `tests/test_worker.mjs` | Cloudflare Worker security tests |

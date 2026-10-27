@@ -375,10 +375,10 @@ def write_report(timestamp: str, checks: list[dict]) -> None:
     if any(c.get("airline") == "B6" and c.get("status") == STATUS_EMPTY for c in checks):
         lines += [
             "",
-            "JetBlue currently reports no POP ⇄ SFO itinerary. The B6 check is kept "
-            "in the daily pipeline on purpose: when JetBlue opens the May 2027 "
-            "schedule (or adds a through fare), the next run will record it as OK "
-            "automatically. No manual reconfiguration is needed.",
+            "JetBlue currently reports no POP ⇄ SFO itinerary. A B6 check can still "
+            "be run manually with `--airlines B6`, but it is not part of the daily "
+            "cloud pipeline because it produces no through fare. Google Flights "
+            "remains the source for B6 rows.",
         ]
     REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
