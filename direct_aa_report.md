@@ -1,6 +1,6 @@
 # Direct airline check — POP ⇄ SFO
 
-Generated: `2026-10-27T21:35:21.051818+00:00`
+Generated: `2026-10-27T21:37:39.057631+00:00`
 
 Top date pairs were checked on the airlines' own booking sites.
 Google Flights remains the source for the full 425-pair scan.
