@@ -78,7 +78,7 @@ python promo_watcher.py             # write state and alert on new promos
 | File | Purpose |
 |---|---|
 | `tracker_pop_sfo.py` | Scan, parse, validate, persist; CLI entry point |
-| `guard_daily_run.py` | 18 h / new-day idempotency, `scan_runs`, delivery trigger |
+| `guard_daily_run.py` | 18 h / local-day idempotency, `scan_runs`, delivery trigger |
 | `send_telegram_summary.py` | Top-5 digest + dashboard upload |
 | `generate_pop_sfo_dashboard.py` | Interactive HTML dashboard |
 | `cloudflare_worker.js` | Hosts the dashboard + secured Telegram webhook |

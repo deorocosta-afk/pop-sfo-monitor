@@ -4,8 +4,8 @@ guard_daily_run.py
 Idempotency guard for the standalone POP <-> SFO flight monitor.
 
 Checks:
-1. Whether the latest POP-SFO scan is complete, from the current UTC day,
-   fresh (< 18 hours) and has at least 80 quotes.
+1. Whether the latest POP-SFO scan is complete, from the current local
+   (America/La_Paz) day, fresh (< 18 hours) and has at least 80 quotes.
 2. Whether the completed scan has an undelivered Telegram digest
    (telegram_delivery_state).
 
@@ -22,6 +22,13 @@ import os
 import sqlite3
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+
+try:
+    from zoneinfo import ZoneInfo
+
+    LOCAL_TZ = ZoneInfo("America/La_Paz")
+except Exception:
+    LOCAL_TZ = datetime.timezone(datetime.timedelta(hours=-4))
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "pop_sfo_prices.db"
@@ -164,6 +171,7 @@ def check_and_decide() -> None:
         return
 
     now_utc = datetime.datetime.now(datetime.timezone.utc)
+    now_local = now_utc.astimezone(LOCAL_TZ)
     scans_fresh = True
     undelivered = False
 
@@ -187,11 +195,12 @@ def check_and_decide() -> None:
             scans_fresh = False
         else:
             hours_ago = (now_utc - dt).total_seconds() / 3600.0
-            scan_is_old_day = dt.date() < now_utc.date()
+            scan_local = dt.astimezone(LOCAL_TZ)
+            scan_is_old_day = scan_local.date() < now_local.date()
             if hours_ago >= FRESH_HOURS or scan_is_old_day:
                 print(
                     f"[CHECK] Scan is stale ({hours_ago:.1f}h ago, "
-                    f"scan_date={dt.date()}, today={now_utc.date()})."
+                    f"scan_date={scan_local.date()}, today={now_local.date()})."
                 )
                 scans_fresh = False
             elif total_quotes < MIN_REQUIRED_QUOTES:
@@ -214,11 +223,12 @@ def check_and_decide() -> None:
             scans_fresh = False
         else:
             hours_ago = (now_utc - dt).total_seconds() / 3600.0
-            scan_is_old_day = dt.date() < now_utc.date()
+            scan_local = dt.astimezone(LOCAL_TZ)
+            scan_is_old_day = scan_local.date() < now_local.date()
             if hours_ago >= FRESH_HOURS or scan_is_old_day:
                 print(
                     f"[CHECK] Scan is stale ({hours_ago:.1f}h ago, "
-                    f"scan_date={dt.date()}, today={now_utc.date()})."
+                    f"scan_date={scan_local.date()}, today={now_local.date()})."
                 )
                 scans_fresh = False
             elif count < MIN_REQUIRED_QUOTES:
