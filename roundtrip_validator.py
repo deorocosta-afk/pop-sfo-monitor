@@ -137,10 +137,15 @@ def main() -> None:
         for dep, ret, sum_price in pairs:
             url = search_url(dep, ret)
             try:
-                page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                page.wait_for_timeout(12000)
-                text = page.inner_text("body")
-                price = parse_roundtrip_price(text)
+                price = None
+                for attempt in (1, 2):
+                    page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                    page.wait_for_timeout(15000 if attempt == 1 else 10000)
+                    text = page.inner_text("body")
+                    price = parse_roundtrip_price(text)
+                    if price is not None:
+                        break
+                    print(f"[RT] {dep} -> {ret}: attempt {attempt} empty, retrying")
                 status = "OK" if price is not None else "EMPTY"
                 print(f"[RT] {dep} -> {ret}: sum ${sum_price:.0f}, roundtrip "
                       + (f"${price:.0f}" if price is not None else "not found"))
