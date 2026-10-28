@@ -55,6 +55,7 @@ from tracker_pop_sfo import (
     DESTINATION,
     STATS,
     build_airline_search_urls,
+    build_google_booking_url,
     extract_carrier_codes,
     fetch_live_roundtrip_options,
     fetch_one_stop_legs,
@@ -211,8 +212,24 @@ class TestPopSfoTracker(unittest.TestCase):
             first_leg = legs[0]
             self.assertEqual(first_leg["origin"], "POP")
             self.assertEqual(first_leg["dest"], "SFO")
+            self.assertEqual(len(first_leg["segments"]), 2)
             self.assertIn(first_leg["carrier_1"], ALLOWED_CARRIERS)
             self.assertGreater(first_leg["total"], 0)
+
+    def test_exact_google_booking_url(self):
+        """Exact booking tfs is generated from segment-level dates/flights."""
+        out = [
+            {"origin": "POP", "dest": "MIA", "date": "2027-05-20", "carrier": "AA", "flight": "2329"},
+            {"origin": "MIA", "dest": "SFO", "date": "2027-05-20", "carrier": "AA", "flight": "2426"},
+        ]
+        inn = [
+            {"origin": "SFO", "dest": "MIA", "date": "2027-06-14", "carrier": "AA", "flight": "2799"},
+            {"origin": "MIA", "dest": "POP", "date": "2027-06-15", "carrier": "AA", "flight": "2329"},
+        ]
+        url = build_google_booking_url(out, inn)
+        self.assertIn("/travel/flights/booking?tfs=", url)
+        self.assertIn("hl=en", url)
+        self.assertEqual(build_google_booking_url([], []), "")
 
     def test_schema_change_and_index_drift_detection(self):
         """If raw items exist but indices/schema are corrupt (e.g. swapped), return 'ERROR' rather than 'EMPTY'."""

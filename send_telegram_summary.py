@@ -304,6 +304,7 @@ def format_sfo_deals(
                 break
 
     msg = "🇺🇸 <b>ТОП РЕЙСОВ: POP ⇄ SFO (1 пересадка)</b>\n\n"
+    msg += "ℹ️ Итог — сумма one-way плеч; точная цена и fare class — по ссылке Google Flights.\n\n"
     for dep, ret, stay, price, fl_out, fl_in, stops_desc, url in distinct_rows:
         marker = "🔥" if (price is not None and price <= threshold) else "✈️"
         price_val = f"${price:.2f}" if price is not None else "Н/Д"

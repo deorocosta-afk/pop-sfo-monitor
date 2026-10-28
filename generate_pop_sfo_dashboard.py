@@ -444,6 +444,9 @@ def generate_html(rows: List[Dict[str, Any]]) -> str:
     <div class="table-card">
       <div class="table-header">
         <h2>Таблица тарифов: Пуэрто-Плата (POP) ⇄ Сан-Франциско (SFO) • Строго 1 пересадка</h2>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">
+          Итог — сумма one-way плеч; точная цена и fare class — по ссылке Google Flights.
+        </p>
         <span id="rowCount" style="font-size: 13px; color: var(--text-muted);"></span>
       </div>
       <div class="table-wrapper">
@@ -454,7 +457,7 @@ def generate_html(rows: List[Dict[str, Any]]) -> str:
               <th>Маршрут</th>
               <th>Дата вылета</th>
               <th>Дата возврата</th>
-              <th>Итоговая цена (USD)</th>
+              <th>Сумма one-way плеч (USD)</th>
               <th>Количество ночей</th>
               <th>Рейсы и пересадка</th>
               <th>Время в пути</th>
@@ -621,7 +624,7 @@ def generate_html(rows: List[Dict[str, Any]]) -> str:
         const jbUrl = `https://www.jetblue.com/booking/flights?from=POP&to=SFO&depart=${{r.date}}&return=${{r.return_date}}&isMultiCity=false&noOfRoute=1&lang=en`;
         const uaUrl = `https://www.united.com/en/us/fsr/choose-flights?f=POP&t=SFO&d=${{r.date}}&r=${{r.return_date}}&px=1&taxng=1&idx=1`;
         const cmUrl = `https://www.copaair.com/en-gs/?origin=POP&destination=SFO&departureDate=${{r.date}}&returnDate=${{r.return_date}}&tripType=roundTrip`;
-        const gfUrl = `https://www.google.com/travel/flights?q=Flights%20from%20POP%20to%20SFO%20on%20${{r.date}}%20through%20${{r.return_date}}%20with%201%20stop&curr=USD&hl=en`;
+        const gfUrl = r.booking_url || `https://www.google.com/travel/flights?q=Flights%20from%20POP%20to%20SFO%20on%20${{r.date}}%20through%20${{r.return_date}}%20with%201%20stop&curr=USD&hl=en`;
 
         let airlineButtons = '';
         const codes = r.carrier_codes || [];

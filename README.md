@@ -23,6 +23,26 @@ one tracker, one SQLite DB, one Telegram digest, one dashboard, one Worker, one 
 - Sends a Top-5 Telegram digest and the HTML dashboard with granular delivery
   flags (`message_delivered`, `document_delivered`).
 
+## Price basis and booking links
+
+The displayed total is the **sum of two one-way legs** (outbound + inbound). It
+is a discovery estimate, not a guaranteed round-trip fare: Google's round-trip
+booking page can be lower or higher and has separate fare classes.
+
+Example (27.10.2026, POP 20.05 → SFO, return 14–15.06):
+
+- scanner sum: **$848** (AA 2329/2426 + AA 2799/1153);
+- exact booking page for those flights: **$869** Basic Economy;
+- a different return (AA 2799/2329) showed **$829** Basic / $982 Main /
+  $1,213 Main Plus / $1,581 Business.
+
+For every same-carrier 1-stop itinerary the scanner now generates an **exact
+Google Flights booking deep link** (`/travel/flights/booking?tfs=...`) from the
+segment dates, airports, carrier and flight numbers. The dashboard/digest link
+opens that page and shows the real fare classes. Mixed-carrier pairs keep a
+Google Flights search link because they are separate tickets. The table/digest
+labels the total as “сумма one-way плеч”.
+
 ## Fare source: Google Flights only
 
 Google Flights is the **only fare scanner**. Direct airline fare checks were

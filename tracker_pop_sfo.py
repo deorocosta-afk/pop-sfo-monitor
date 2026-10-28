@@ -221,7 +221,17 @@ def get_from_disk_cache(date_str: str, origin: str, dest: str) -> Optional[List[
             dt = dt.replace(tzinfo=timezone.utc)
         age_hours = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
         if age_hours <= DISK_CACHE_TTL_HOURS:
-            return entry.get("legs", [])
+            legs = entry.get("legs", [])
+            # Cache entries written before segment-level metadata must be
+            # re-fetched so exact Google booking links can be built.
+            if legs and not all(
+                isinstance(leg, dict)
+                and isinstance(leg.get("segments"), list)
+                and len(leg["segments"]) == 2
+                for leg in legs
+            ):
+                return None
+            return legs
     except Exception:
         pass
     return None
@@ -347,6 +357,54 @@ def build_tfs(dep_date: str, origin: str, dest: str, airlines: Optional[List[str
     msg += _field_bytes(3, _flight_leg(dep_date, origin, dest, max_stops_enum=2, airlines=airlines))
     msg += _field_varint(8, 1) + _field_varint(9, 1) + _field_varint(14, 1) + _field_varint(19, 2)
     return base64.urlsafe_b64encode(msg).decode("ascii").rstrip("=")
+
+
+def _booking_segment_pb(segment: Dict[str, Any]) -> bytes:
+    return (
+        _field_bytes(1, str(segment["origin"]).encode())
+        + _field_bytes(2, str(segment["date"]).encode())
+        + _field_bytes(3, str(segment["dest"]).encode())
+        + _field_bytes(5, str(segment["carrier"]).encode())
+        + _field_bytes(6, str(segment["flight"]).encode())
+    )
+
+
+def _booking_leg_pb(segments: List[Dict[str, Any]]) -> bytes:
+    first = segments[0]
+    last = segments[-1]
+    b = _field_bytes(2, str(first["date"]).encode())
+    for segment in segments:
+        b += _field_bytes(4, _booking_segment_pb(segment))
+    b += _field_bytes(13, _airport(str(first["origin"])))
+    b += _field_bytes(14, _airport(str(last["dest"])))
+    return b
+
+
+def build_google_booking_url(
+    outbound_segments: List[Dict[str, Any]],
+    inbound_segments: List[Dict[str, Any]],
+) -> str:
+    """
+    Exact Google Flights booking deep link for a selected round-trip itinerary.
+
+    Google's /booking page accepts tfs with the concrete segments (dates,
+    airports, carrier and flight number) and shows the real bookable fare
+    classes (Basic/Main/...). The old generic q= search link did not.
+    """
+    if len(outbound_segments) != 2 or len(inbound_segments) != 2:
+        return ""
+    if any(not s.get("date") for s in outbound_segments + inbound_segments):
+        return ""
+
+    msg = _field_varint(1, 28) + _field_varint(2, 2)
+    msg += _field_bytes(3, _booking_leg_pb(outbound_segments))
+    msg += _field_bytes(3, _booking_leg_pb(inbound_segments))
+    msg += _field_varint(8, 1) + _field_varint(9, 1) + _field_varint(14, 1)
+    # Sentinel field used by the booking page (all-ones varint).
+    msg += _field_bytes(16, _field_varint(1, 0xFFFFFFFFFFFFFFFF))
+    msg += _field_varint(19, 1)
+    token = base64.urlsafe_b64encode(msg).decode("ascii").rstrip("=")
+    return f"https://www.google.com/travel/flights/booking?tfs={token}&hl=en&curr=USD"
 
 
 def format_duration_minutes(total_min: Optional[int]) -> str:
@@ -713,6 +771,35 @@ def fetch_one_stop_legs(
                 primary_carrier = c1 if c1 == c2 else f"{c1}+{c2}"
                 flight_code = f"{c1} {fn1}➔{c2} {fn2} ({mid_arr})"
 
+                arr_date_obj = None
+                if len(itin) > 7 and isinstance(itin[7], list) and len(itin[7]) >= 3:
+                    try:
+                        arr_date_obj = date(int(itin[7][0]), int(itin[7][1]), int(itin[7][2]))
+                    except Exception:
+                        arr_date_obj = None
+
+                dep_date_obj = date.fromisoformat(date_str)
+                second_date = (
+                    arr_date_obj.isoformat()
+                    if arr_date_obj and arr_date_obj > dep_date_obj
+                    else date_str
+                )
+                segments = []
+                for seg, seg_origin, seg_dest, seg_carrier, seg_flight, seg_date in (
+                    (seg1, dep_airport, mid_arr, c1, fn1, date_str),
+                    (seg2, mid_dep, arr_airport, c2, fn2, second_date),
+                ):
+                    if not seg_origin or not seg_dest or not seg_carrier or not seg_flight:
+                        segments = []
+                        break
+                    segments.append({
+                        "origin": seg_origin,
+                        "dest": seg_dest,
+                        "date": seg_date,
+                        "carrier": seg_carrier,
+                        "flight": seg_flight,
+                    })
+
                 valid_legs.append({
                     "date": date_str,
                     "origin": origin,
@@ -727,6 +814,7 @@ def fetch_one_stop_legs(
                     "layover_min": int(layover_min),
                     "duration_min": int(total_min),
                     "duration_str": format_duration_minutes(total_min),
+                    "segments": segments if len(segments) == 2 else [],
                 })
             except Exception:
                 # Never let one corrupt item drop the whole date
@@ -860,6 +948,9 @@ def fetch_live_roundtrip_options(
         )
 
         fare_type_desc = "1 авиакомпания (сумма плеч)" if not is_mixed else "2 отдельных билета"
+        exact_booking_url = "" if is_mixed else build_google_booking_url(
+            out_l.get("segments") or [], in_l.get("segments") or []
+        )
 
         return {
             "dep_date": dep_date,
@@ -877,7 +968,8 @@ def fetch_live_roundtrip_options(
             "stops_desc": f"1 пересадка ({out_l['via']} / {in_l['via']}) • {fare_type_desc}",
             "duration_str": f"{out_l['duration_str']} / {in_l['duration_str']}",
             "booking_urls": booking_urls,
-            "booking_url": booking_urls["google_flights"],
+            "booking_url": exact_booking_url or booking_urls["google_flights"],
+            "booking_url_search": booking_urls["google_flights"],
         }
 
     # 1. Overall cheapest combination
