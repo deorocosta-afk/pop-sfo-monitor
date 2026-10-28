@@ -286,6 +286,20 @@ def format_sfo_deals(
             ORDER BY price_usd ASC, stay_days ASC, dep_date ASC
         """, ("POP", "SFO", latest_ts))
         raw_rows = cur.fetchall()
+
+        rt_map = {}
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='roundtrip_checks'")
+        if cur.fetchone():
+            cur.execute("SELECT MAX(timestamp) FROM roundtrip_checks")
+            rt_ts = cur.fetchone()[0]
+            if rt_ts:
+                cur.execute("""
+                    SELECT dep_date, ret_date, bookable_price, url
+                    FROM roundtrip_checks
+                    WHERE timestamp = ? AND bookable_price IS NOT NULL
+                """, (rt_ts,))
+                for dep, ret, rt_price, rt_url in cur.fetchall():
+                    rt_map[(dep, ret)] = (rt_price, rt_url)
     finally:
         if conn:
             conn.close()
@@ -324,6 +338,10 @@ def format_sfo_deals(
         msg += f"   • Рейсы: {html.escape(str(flight_str))} ({html.escape(str(stops_desc or '1 пересадка'))})\n"
         if url:
             msg += f'   • <a href="{escape_html_attr(str(url))}">🔗 Поиск рейсов на Google Flights</a>\n'
+        rt = rt_map.get((dep, ret))
+        if rt and rt[0] is not None:
+            msg += (f'   • Google roundtrip: <b>${float(rt[0]):.0f}</b> (Basic) — '
+                    f'<a href="{escape_html_attr(str(rt[1]))}">проверить</a>\n')
         msg += "\n"
 
     dashboard_link = DASHBOARD_URL or f"{BASE_URL}/sfo"

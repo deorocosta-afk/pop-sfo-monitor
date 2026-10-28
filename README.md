@@ -43,6 +43,13 @@ opens that page and shows the real fare classes. Mixed-carrier pairs keep a
 Google Flights search link because they are separate tickets. The table/digest
 labels the total as “сумма one-way плеч”.
 
+After each scan, `roundtrip_validator.py` opens Google Flights' round-trip
+search for the **top 10 date pairs** (Playwright + Chrome under xvfb in CI) and
+stores the actual “from $X” round-trip price in `roundtrip_checks`. The digest
+and dashboard show it as **“Google roundtrip”** next to the sum. This keeps the
+headline deals bookable-checked without turning the 425-pair scanner into a
+slow browser crawl.
+
 ## Fare source: Google Flights only
 
 Google Flights is the **only fare scanner**. Direct airline fare checks were
@@ -84,7 +91,8 @@ python promo_watcher.py             # write state and alert on new promos
 | `cloudflare_worker.js` | Hosts the dashboard + secured Telegram webhook |
 | `harness_reset.py` | `--wipe` / `--seed` / `--status` |
 | `promo_watcher.py` | Public AA/JetBlue sale/promo watcher (Google News RSS) |
-| `.github/workflows/monitor.yml` | Scheduled scan, promo watch, persistence before delivery |
+| `roundtrip_validator.py` | Google round-trip price validation for the top 10 pairs |
+| `.github/workflows/monitor.yml` | Scheduled scan, round-trip validation, promo watch, persistence before delivery |
 | `test_tracker_pop_sfo.py` | Python test suite |
 | `tests/test_worker.mjs` | Cloudflare Worker security tests |
 
@@ -104,6 +112,7 @@ python guard_daily_run.py               # idempotency decision
 python -m unittest discover -s . -v     # Python tests
 node tests/test_worker.mjs              # Worker tests
 python promo_watcher.py --dry-run       # public AA/JetBlue promo preview
+python roundtrip_validator.py --top 10  # actual Google round-trip prices (Chrome)
 ```
 
 Production scan (writes real data and may send Telegram):
@@ -131,6 +140,8 @@ America/La_Paz) and one
 the rest are skipped by the guard unless a digest is undelivered. After the
 scan, `promo_watcher.py` checks public AA/JetBlue sale news and sends a Telegram
 alert only when a new public promo/code appears (`continue-on-error`).
+`roundtrip_validator.py` then checks the actual Google round-trip price for the
+top 10 date pairs (Playwright + Chrome under xvfb, `continue-on-error`).
 
 Required repository secrets:
 

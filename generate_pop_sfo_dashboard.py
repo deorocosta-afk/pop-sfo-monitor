@@ -647,7 +647,7 @@ def generate_html(rows: List[Dict[str, Any]]) -> str:
             <td><strong>POP ⇄ SFO</strong> <span class="badge-onestop">1 пересадка</span></td>
             <td><strong>${{escapeHtml(r.date)}}</strong></td>
             <td><strong>${{escapeHtml(r.return_date)}}</strong></td>
-            <td class="price-tag ${{isDeal ? 'deal' : ''}}">$${{r.total_price.toFixed(2)}}</td>
+            <td class="price-tag ${{isDeal ? 'deal' : ''}}">$${{r.total_price.toFixed(2)}}${{r.roundtrip_price ? '<div style="font-size:11px;color:#059669;"><a href="' + r.roundtrip_url + '" target="_blank" rel="noopener noreferrer">RT $' + Number(r.roundtrip_price).toFixed(0) + '</a></div>' : ''}}</td>
             <td style="font-weight: 600; color: #a5b4fc;">${{nightsDisplay}}</td>
             <td>
               <div style="margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
@@ -706,6 +706,24 @@ def export_dashboard(open_in_browser: bool = False) -> Path:
             ORDER BY total_price ASC, date ASC
         """, (latest_ts,))
         rows = [dict(r) for r in cur.fetchall()]
+
+        rt_map = {}
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='roundtrip_checks'")
+        if cur.fetchone():
+            cur.execute("SELECT MAX(timestamp) FROM roundtrip_checks")
+            rt_ts = cur.fetchone()[0]
+            if rt_ts:
+                cur.execute("""
+                    SELECT dep_date, ret_date, bookable_price, url
+                    FROM roundtrip_checks
+                    WHERE timestamp = ? AND bookable_price IS NOT NULL
+                """, (rt_ts,))
+                for dep, ret, rt_price, rt_url in cur.fetchall():
+                    rt_map[(dep, ret)] = (rt_price, rt_url)
+        for r in rows:
+            rt = rt_map.get((r.get("date"), r.get("return_date")))
+            r["roundtrip_price"] = rt[0] if rt else None
+            r["roundtrip_url"] = rt[1] if rt else None
 
         if not rows:
             print(f"[WARN] Для скана {latest_ts} нет строк — дашборд не перезаписываю")

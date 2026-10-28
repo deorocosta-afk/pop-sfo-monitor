@@ -92,6 +92,16 @@ jobs:
 
       # Public promo watcher: Google News RSS for AA/JetBlue public sales.
       # Never touches fare scanning; sends a Telegram alert only on new promos.
+      - name: Roundtrip price validation (top 10)
+        id: roundtrip_validation
+        if: steps.check_run.outputs.should_run_scan == 'true'
+        continue-on-error: true
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
+          fi
+          xvfb-run -a python roundtrip_validator.py --top 10
+
       - name: Promo watcher (AA, B6 public sales)
         id: promo_watcher
         if: steps.check_run.outputs.should_run_scan == 'true'

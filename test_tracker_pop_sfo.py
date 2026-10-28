@@ -682,6 +682,13 @@ class TestPopSfoTracker(unittest.TestCase):
 
 
 
+    def test_roundtrip_price_parser(self):
+        """Google's 'from $X' round-trip price is parsed from page text."""
+        from roundtrip_validator import parse_roundtrip_price
+        self.assertEqual(parse_roundtrip_price("Search results. Cheapest from $829 round trip"), 829.0)
+        self.assertEqual(parse_roundtrip_price("Cheapest $1,049"), 1049.0)
+        self.assertIsNone(parse_roundtrip_price("no prices here"))
+
     def test_promo_code_extraction(self):
         """Public promo codes are extracted; arena/member-only noise is filtered out."""
         from promo_watcher import extract_codes, is_public_sale
