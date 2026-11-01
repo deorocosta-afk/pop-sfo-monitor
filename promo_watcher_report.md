@@ -1,6 +1,6 @@
 # Promo watcher — public AA/JetBlue sales
 
-Checked: `2026-10-31T16:25:16.296501+00:00`
+Checked: `2026-11-01T17:14:59.909721+00:00`
 
 Fare scanning is Google Flights only. This report covers public sale/promo
 announcements (not member-only fares).
