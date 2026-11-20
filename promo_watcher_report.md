@@ -1,6 +1,6 @@
 # Promo watcher — public AA/JetBlue sales
 
-Checked: `2026-11-20T19:14:58.685127+00:00`
+Checked: `2026-11-20T19:20:15.945443+00:00`
 
 Fare scanning is Google Flights only. This report covers public sale/promo
 announcements (not member-only fares).
@@ -9,8 +9,8 @@ announcements (not member-only fares).
 
 | Source | Airline | Status | Note |
 |---|---|---|---|
-| Google News: JetBlue sale/promo | B6 | BLOCKED | |
-| Google News: American Airlines sale/promo | AA | BLOCKED | |
+| Google News: JetBlue sale/promo | B6 | OK | |
+| Google News: American Airlines sale/promo | AA | OK | |
 | AA newsroom | AA | OK | |
 | JetBlue newsroom | B6 | OK | |
 | AA flight deals | AA | BLOCKED | |
